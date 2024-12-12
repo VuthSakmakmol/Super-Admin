@@ -2,25 +2,75 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use App\Models\Activity;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use App\Models\User;
 
 class SuperAdminController extends Controller
 {
-    public function index()
-    {
-        $users = User::with('roles', 'permissions')->get();
-        $roles = Role::all();
-        return view('super-admin.index', compact('users', 'roles'));
+//     public function index()
+// {
+//     $users = User::all(); // Fetch all users
+//     $roles = Role::all(); // Fetch all roles
+//     $activities = Activity::with('user')->latest()->get(); // Fetch all activities
+
+//     return view('super-admin.index', compact('users', 'roles', 'activities'));
+// }
+public function index(Request $request)
+{
+    // Create the base query for users
+    $query = User::query();
+
+    // Apply filters
+    if ($request->filled('name')) {
+        $query->where('name', 'like', '%' . $request->name . '%');
     }
 
-    public function managePermissions(Request $request){
+    if ($request->filled('id')) {
+        $query->where('id', $request->id);
+    }
+
+    if ($request->filled('role')) {
+        $query->whereHas('roles', function ($q) use ($request) {
+            $q->where('name', $request->role);
+        });
+    }
+
+    if ($request->filled('month')) {
+        $query->whereMonth('created_at', $request->month);
+    }
+
+    if ($request->filled('year')) {
+        $query->whereYear('created_at', $request->year);
+    }
+
+    // Fetch filtered users
+    $users = $query->with('roles')->get();
+
+    // Fetch all roles
+    $roles = Role::all();
+
+    // Fetch activity logs
+    $activities = Activity::latest()->get(); // Replace `Activity` with your actual model name
+
+    // Pass data to the view
+    return view('super-admin.index', compact('users', 'roles', 'activities'));
+}
+
+
+
+
+
+    public function managePermissions(Request $request)
+    {
         $role = Role::findByName($request->role);
         $role->syncPermissions($request->permissions);
-        return back()->with('success', 'Permissions updated!');
+
+        return response()->json(['success' => 'Permissions updated!']);
     }
+
 
     // Manage users page
     public function manageUsers()
@@ -40,14 +90,6 @@ class SuperAdminController extends Controller
             'role' => 'required|exists:roles,name',
         ]);
 
-        if ($request->role === 'super admin') {
-            // Check if there is already a Super Admin
-            $existingSuperAdmin = User::role('super admin')->first();
-            if ($existingSuperAdmin) {
-                return redirect()->back()->with('error', 'There can only be one Super Admin.');
-            }
-        }
-
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -55,6 +97,14 @@ class SuperAdminController extends Controller
         ]);
 
         $user->assignRole($request->role);
+
+        // Log the activity
+        Activity::create([
+            'user_id' => auth()->id(),
+            'action' => 'Created user',
+            'target_type' => 'User',
+            'target_id' => $user->id,
+        ]);
 
         return redirect()->route('super-admin.index')->with('success', 'User created successfully.');
     }
@@ -74,6 +124,14 @@ class SuperAdminController extends Controller
         $user = User::findOrFail($id);
         $user->delete();
 
+        // Log the activity
+        Activity::create([
+            'user_id' => auth()->id(),
+            'action' => 'Deleted user',
+            'target_type' => 'User',
+            'target_id' => $id,
+        ]);
+
         return redirect()->route('super-admin.index')->with('success', 'User deleted successfully.');
     }
 
@@ -84,18 +142,18 @@ class SuperAdminController extends Controller
             'role' => 'required|exists:roles,name',
         ]);
 
-        if ($request->role === 'super admin') {
-            // Check if there is already a Super Admin
-            $existingSuperAdmin = User::role('super admin')->first();
-            if ($existingSuperAdmin && $existingSuperAdmin->id !== $id) {
-                return redirect()->back()->with('error', 'There can only be one Super Admin.');
-            }
-        }
-
         $user = User::findOrFail($id);
         $user->syncRoles([$request->role]);
 
-        return redirect()->back()->with('success', 'Role assigned successfully.');
+        // Log the activity
+        Activity::create([
+            'user_id' => auth()->id(),
+            'action' => "Assigned role {$request->role} to user",
+            'target_type' => 'User',
+            'target_id' => $user->id,
+        ]);
+
+        return redirect()->route('super-admin.index')->with('success', 'Role assigned successfully.');
     }
 
 }

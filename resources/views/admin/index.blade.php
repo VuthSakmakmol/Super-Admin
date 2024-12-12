@@ -1,7 +1,9 @@
 @extends('layouts.app')
 
 @section('title', 'Admin Dashboard')
-
+@push('styles')
+    <link href="{{ asset('css/super-admin-index.css') }}" rel="stylesheet">
+@endpush
 @section('content')
     <div class="container">
         <h1>Admin Dashboard</h1>
@@ -86,6 +88,29 @@
                             </form>
                         </div>
                     </div>
+                @endforeach
+            </tbody>
+        </table>
+        <h2>Activity Log</h2>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Performed By</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($activities as $activity)
+                    <tr>
+                        <td>{{ $activity->created_at->format('Y-m-d H:i:s') }}</td>
+                        <td>{{ $activity->user->name ?? 'System' }}</td>
+                        <td>{{ $activity->action }}</td>
+                        <td>
+                            {{ $activity->target_type }} (ID: {{ $activity->target_id }})
+                        </td>
+                    </tr>
                 @endforeach
             </tbody>
         </table>
