@@ -10,6 +10,7 @@ class AdminController extends Controller
 {
     public function index()
     {
+        
         // Retrieve all users except super admin
         $users = User::whereDoesntHave('roles', function ($query) {
             $query->where('name', 'super admin');
@@ -20,12 +21,19 @@ class AdminController extends Controller
         return view('admin.index', compact('users', 'roles'));
     }
 
-    public function manageUsers(Request $request)
+    public function manageUsers()
     {
-        $user = User::find($request->user_id);
-        if (!$user) {
-            return redirect()->back()->with('error', 'User not found.');
-        }
+        $users = User::with('roles')->get(); // Fetch all users with their roles
+        $roles = Role::where('name', '!=', 'super admin')->get(); // Fetch all roles except 'super admin'
+
+        return view('admin.users', compact('users', 'roles'));
+    }
+
+
+    public function viewReports()
+    {
+        // Logic for viewing reports
+        return view('admin.reports');
     }
 
     public function updateUser(Request $request, $id)
@@ -44,25 +52,46 @@ class AdminController extends Controller
     public function deleteUser($id)
     {
         $user = User::findOrFail($id);
-        $user->delete();
-        return redirect()->back()->with('success', 'User deleted successfully.');
+        $user->delete(); // Delete user
+        return back()->with('success', 'User deleted successfully.');
     }
 
+    // Method to handle role changes
     public function changeRole(Request $request, $id)
-{
-    $request->validate([
-        'role' => 'required|exists:roles,name',
-    ]);
+    {
+        $user = User::findOrFail($id);
 
-    // Prevent assigning the "super admin" role
-    if ($request->role === 'super admin') {
-        return redirect()->back()->with('error', 'You cannot assign the Super Admin role.');
+        // Prevent assigning 'super admin'
+        if (!in_array($request->role, ['user', 'admin'])) {
+            return back()->with('error', 'Invalid role selected.');
+        }
+
+        // Assign the new role
+        $user->syncRoles($request->role);
+
+        return back()->with('success', 'Role updated successfully.');
     }
 
-    $user = User::findOrFail($id);
-    $user->syncRoles([$request->role]);
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+            'role' => 'required|in:user,admin', // Ensure only 'user' or 'admin' can be assigned
+        ]);
 
-    return redirect()->back()->with('success', 'Role updated successfully.');
-}
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => bcrypt($request->password),
+        ]);
+
+        // Assign the selected role
+        $user->assignRole($request->role);
+
+        return redirect()->route('admin.users')->with('success', 'User created successfully.');
+    }
+
 
 }

@@ -6,113 +6,78 @@
 @endpush
 @section('content')
     <div class="container">
-        <h1>Admin Dashboard</h1>
-        <p>Welcome, {{ auth()->user()->name }}! Manage users here.</p>
+        <div class="row justify-content-center">
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">Welcome to Your Dashboard</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-0">Hello, <strong>{{ auth()->user()->name }}</strong>!</p>
+                        <p class="mb-0">You are logged in as a <strong>{{ auth()->user()->roles->pluck('name')->first() ?? 'User' }}</strong>.</p>
+                        <p class="text-muted mt-2">
+                            Use the navigation menu to access the features available to your role.
+                        </p>
+                    </div>
+                </div>
+    
+                <!-- Role-Specific Actions -->
+                @if(auth()->user()->hasRole('super admin'))
+                <!-- Super Admin Actions -->
+                <div class="card mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <h4>Super Admin Panel</h4>
+                    </div>
+                    <div class="card-body">
+                        <a href="{{ route('super-admin.index') }}" class="btn btn-primary">Manage Users</a>
+                        <a href="{{ route('super-admin.permissions') }}" class="btn btn-secondary">Manage Permissions</a>
+                        <a href="{{ route('super-admin.activity-log') }}" class="btn btn-info">View Activity Log</a>
+                    </div>
+                </div>
+                @endif
+    
+                @if(auth()->user()->hasRole('admin'))
+                    <!-- Admin Actions -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-dark text-white">
+                            <h4>Admin Panel</h4>
+                        </div>
+                        <div class="card-body">
+                            <!-- Manage Users Button -->
+                            <a href="{{ route('admin.users') }}" class="btn btn-primary mb-2">
+                                <i class="fas fa-users"></i> Manage Users
+                            </a>
+    
+                            <!-- View Reports Button -->
+                            <a href="{{ route('reports') }}" class="btn btn-secondary mb-2">
+                                <i class="fas fa-file-alt"></i> View Reports
+                            </a>
+                        </div>
+                    </div>
+                @endif
+    
+    
+                @if(auth()->user()->hasRole('user'))
+                <!-- User Actions -->
+                <div class="card mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <h4>User Dashboard</h4>
+                    </div>
+                    <div class="card-body">
+                        <p>Welcome, {{ auth()->user()->name }}! Explore the features available to you.</p>
+                        <a href="{{ route('user.profile') }}" class="btn btn-primary">View Profile</a>
+                        <a href="{{ route('user.settings') }}" class="btn btn-secondary">Account Settings</a>
+                    </div>
+                </div>
+                @endif
+            </div>
+        </div>
 
         @if(session('success'))
             <div class="alert alert-success">
                 {{ session('success') }}
             </div>
         @endif
-
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($users as $user)
-                    <tr>
-                        <td>{{ $user->id }}</td>
-                        <td>{{ $user->name }}</td>
-                        <td>{{ $user->email }}</td>
-                        <td>{{ $user->roles->pluck('name')->first() ?? 'None' }}</td>
-                        <td>
-                            <!-- Edit Button -->
-                            <a href="#" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editUserModal-{{ $user->id }}">Edit</a>
-
-                            <!-- Delete Button -->
-                            <form action="{{ route('admin.delete-user', $user->id) }}" method="POST" style="display:inline;">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                            </form>
-
-                            <!-- Change Role -->
-                            <form action="{{ route('admin.change-role', $user->id) }}" method="POST" style="display:inline;">
-                                @csrf
-                                <select name="role" onchange="this.form.submit()" class="form-select form-select-sm">
-                                    <option value="" disabled selected>Change Role</option>
-                                    @foreach($roles as $role)
-                                        @if($role->name !== 'super admin') <!-- Exclude Super Admin -->
-                                            <option value="{{ $role->name }}">{{ ucfirst($role->name) }}</option>
-                                        @endif
-                                    @endforeach
-                                </select>
-                            </form>
-                            
-                        </td>
-                    </tr>
-
-                    <!-- Edit User Modal -->
-                    <div class="modal fade" id="editUserModal-{{ $user->id }}" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <form method="POST" action="{{ route('admin.update-user', $user->id) }}">
-                                @csrf
-                                @method('PUT')
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="editUserModalLabel">Edit User</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <div class="mb-3">
-                                            <label for="name" class="form-label">Name</label>
-                                            <input type="text" class="form-control" name="name" value="{{ $user->name }}" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="email" class="form-label">Email</label>
-                                            <input type="email" class="form-control" name="email" value="{{ $user->email }}" required>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                        <button type="submit" class="btn btn-primary">Save changes</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                @endforeach
-            </tbody>
-        </table>
-        <h2>Activity Log</h2>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Timestamp</th>
-                    <th>Performed By</th>
-                    <th>Action</th>
-                    <th>Target</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($activities as $activity)
-                    <tr>
-                        <td>{{ $activity->created_at->format('Y-m-d H:i:s') }}</td>
-                        <td>{{ $activity->user->name ?? 'System' }}</td>
-                        <td>{{ $activity->action }}</td>
-                        <td>
-                            {{ $activity->target_type }} (ID: {{ $activity->target_id }})
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
+        
     </div>
 @endsection

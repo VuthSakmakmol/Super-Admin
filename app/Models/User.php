@@ -13,6 +13,18 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
+        protected static function boot()
+    {
+        parent::boot();
+
+        static::created(function ($user) {
+            if (!$user->hasRole('super admin') && !$user->roles->count()) {
+                $user->assignRole('user');
+            }
+        });
+    }
+
+
     /**
      * The attributes that are mass assignable.
      *
